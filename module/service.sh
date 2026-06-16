@@ -3,9 +3,11 @@
 # applies kernel/subsystem optimizations post-boot for sm-s911b
 # author: dyokism
 
+# shellcheck disable=SC3043
+
 MODDIR=${0%/*}
 
-# Initialize/clear log on boot
+# initialize/clear log on boot
 > "$MODDIR/tweak.log"
 
 # device guard
@@ -26,18 +28,18 @@ esac
 write_value() {
     local path="$1"
     local value="$2"
-    local timestamp
-    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    local timestamp_val
+    timestamp_val=${TIMESTAMP:-$(date "+%Y-%m-%d %H:%M:%S")}
     
     if [ ! -e "$path" ]; then
-        echo "[$timestamp] [SKIP] Path does not exist: $path" >> "$MODDIR/tweak.log"
+        echo "[$timestamp_val] [SKIP] Path does not exist: $path" >> "$MODDIR/tweak.log"
         return 0
     fi
     
     if echo "$value" > "$path" 2>/dev/null; then
-        echo "[$timestamp] [OK] Wrote '$value' to $path" >> "$MODDIR/tweak.log"
+        echo "[$timestamp_val] [OK] Wrote '$value' to $path" >> "$MODDIR/tweak.log"
     else
-        echo "[$timestamp] [ERR] Failed to write '$value' to $path" >> "$MODDIR/tweak.log"
+        echo "[$timestamp_val] [ERR] Failed to write '$value' to $path" >> "$MODDIR/tweak.log"
     fi
 }
 
@@ -63,9 +65,9 @@ wait_for_boot() {
 
 # tweak applications
 apply_tweaks() {
-    local timestamp
-    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$timestamp] [INFO] Applying optimization tweaks..." >> "$MODDIR/tweak.log"
+    local TIMESTAMP
+    TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "[$TIMESTAMP] [INFO] Applying optimization tweaks..." >> "$MODDIR/tweak.log"
 
     # cpu walt tuning
     write_value "/sys/devices/system/cpu/cpufreq/policy0/walt/hispeed_load" "85"
@@ -91,29 +93,18 @@ apply_tweaks() {
         local sched_path="/sys/block/${dev}/queue/scheduler"
         if [ -f "$sched_path" ]; then
             local avail
-            avail=$(cat "$sched_path")
+            read -r avail < "$sched_path"
             case "$avail" in
                 *none*)
                     write_value "$sched_path" "none"
                     ;;
                 *)
-                    echo "[$(date "+%Y-%m-%d %H:%M:%S")] [SKIP] 'none' scheduler not available for $dev (available: $avail)" >> "$MODDIR/tweak.log"
+                    echo "[$TIMESTAMP] [SKIP] 'none' scheduler not available for $dev (available: $avail)" >> "$MODDIR/tweak.log"
                     ;;
             esac
         fi
         write_value "/sys/block/${dev}/queue/read_ahead_kb" "256"
-        local active_sched=""
-        if [ -f "$sched_path" ]; then
-            active_sched=$(cat "$sched_path")
-        fi
-        case "$active_sched" in
-            *"[none]"*)
-                write_value "/sys/block/${dev}/queue/nr_requests" "31"
-                ;;
-            *)
-                write_value "/sys/block/${dev}/queue/nr_requests" "128"
-                ;;
-        esac
+        write_value "/sys/block/${dev}/queue/nr_requests" "128"
     done
 
     # network tuning
@@ -125,8 +116,9 @@ apply_tweaks() {
     # kernel misc tuning
     write_value "/proc/sys/kernel/perf_cpu_time_max_percent" "10"
 
-    timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$timestamp] [INFO] Optimization tweaks completed." >> "$MODDIR/tweak.log"
+    local end_timestamp
+    end_timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    echo "[$end_timestamp] [INFO] Optimization tweaks completed." >> "$MODDIR/tweak.log"
 }
 
 # execution pipeline
