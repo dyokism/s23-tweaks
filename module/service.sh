@@ -104,7 +104,20 @@ apply_tweaks() {
             esac
         fi
         write_value "/sys/block/${dev}/queue/read_ahead_kb" "256"
-        write_value "/sys/block/${dev}/queue/nr_requests" "128"
+        
+        # read active scheduler to safely assign queue depth limits (hardware max is 32 for none)
+        local active_sched=""
+        if [ -f "$sched_path" ]; then
+            read -r active_sched < "$sched_path"
+        fi
+        case "$active_sched" in
+            *"[none]"*)
+                write_value "/sys/block/${dev}/queue/nr_requests" "31"
+                ;;
+            *)
+                write_value "/sys/block/${dev}/queue/nr_requests" "128"
+                ;;
+        esac
     done
 
     # network tuning

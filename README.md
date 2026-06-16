@@ -38,7 +38,7 @@ Samsung devices run a late post-boot optimization script (`init.kernel.post_boot
 ### Storage (UFS) & I/O
 * **I/O Scheduler**: Switched physical block devices (`sd*`) to `none` (No-Op) to bypass CPU-bound software queuing, utilizing the hardware's native command queuing.
 * **Read-Ahead**: Increased to `256KB`.
-* **Request Limit**: `nr_requests` set to `128` to expand queue depth.
+* **Request Limit**: `nr_requests` set to `128` (or `31` for devices running the `none` scheduler to align with physical hardware queue depth limits).
 
 ### Network
 * **TCP Fast Open**: Configured `tcp_fastopen` to `3` to enable client/server handshake payload optimizations.

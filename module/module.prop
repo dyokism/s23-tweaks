@@ -1,7 +1,7 @@
 id=s23-tweaks
 name=S23 Tweaks
-version=v1.1
-versionCode=110
+version=v1.1.1
+versionCode=111
 author=dyokism
 description=Low-risk kernel tweaks for SM-S911*
 updateJson=https://raw.githubusercontent.com/dyokism/S23-Tweaks/main/module/update.json

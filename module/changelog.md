@@ -1,5 +1,8 @@
 # S23 Performance Tweaks Changelog
 
+## v1.1.1
+- Fixed UFS `nr_requests` write error by restoring adaptive scheduler check (setting limit to 31 for `none` scheduler).
+
 ## v1.1
 - Replaced `cat` subshell forks with fast `read -r` redirects.
 - Cached dynamic `date` command outputs to eliminate duplicate subshell forks.
