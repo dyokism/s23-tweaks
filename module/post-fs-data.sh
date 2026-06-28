@@ -1,33 +1,11 @@
 #!/system/bin/sh
-# s23 performance tweaks - post-fs-data.sh
-# early-boot zram reconfiguration logic
-# author: dyokism
 
 # shellcheck disable=SC3043
 
 MODDIR=${0%/*}
 
-# initialize/clear log on boot
-> "$MODDIR/zram_early.log"
+: > "$MODDIR/zram_early.log"
 
-# safe write function
-write_value() {
-    local path="$1"
-    local value="$2"
-    
-    if [ ! -e "$path" ]; then
-        echo "[$TIMESTAMP] [SKIP] Path does not exist: $path" >> "$MODDIR/zram_early.log"
-        return 0
-    fi
-    
-    if echo "$value" > "$path" 2>/dev/null; then
-        echo "[$TIMESTAMP] [OK] Wrote '$value' to $path" >> "$MODDIR/zram_early.log"
-    else
-        echo "[$TIMESTAMP] [ERR] Failed to write '$value' to $path" >> "$MODDIR/zram_early.log"
-    fi
-}
-
-# helper for zram logging
 log_zram_step() {
     local step="$1"
     local status="$2"
@@ -36,11 +14,11 @@ log_zram_step() {
 }
 
 run_post_fs_data() {
-    # cache timestamp once to avoid subshell forks on every log line
+    # Cache timestamp to avoid subshell forks on every log line.
     local TIMESTAMP
     TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
-    # guard check: skip if current comp_algorithm is already lz4
+    # Skip if compression algorithm is already lz4.
     local comp_algo_path="/sys/block/zram0/comp_algorithm"
     if [ -f "$comp_algo_path" ]; then
         local current_algo
@@ -53,9 +31,6 @@ run_post_fs_data() {
         esac
     fi
 
-    # zram reconfiguration logic
-
-    # step a: read current disksize from /sys/block/zram0/disksize
     local disksize_path="/sys/block/zram0/disksize"
     if [ ! -f "$disksize_path" ]; then
         log_zram_step "Step A (Read disksize)" "SKIP" "Path $disksize_path not found"
@@ -69,14 +44,13 @@ run_post_fs_data() {
     fi
     log_zram_step "Step A (Read disksize)" "OK" "Original disksize: $original_disksize"
 
-    # step b: check available free ram vs current swap usage
     local mem_free=""
     local swap_total=""
     local swap_free=""
 
     if [ -f /proc/meminfo ]; then
-        local name value unit
-        while read -r name value unit; do
+        local name value
+        while read -r name value _; do
             case "$name" in
                 MemFree:) mem_free=$value ;;
                 SwapTotal:) swap_total=$value ;;
@@ -104,7 +78,7 @@ run_post_fs_data() {
         log_zram_step "Step B (RAM check)" "OK" "Free RAM (${mem_free_mb}MB) > Swap Used (${swap_used_mb}MB). Safe to proceed."
     fi
 
-    # step c: swapoff the zram device (try /dev/block/zram0, fallback /dev/zram0)
+    # Swapoff ZRAM device (try /dev/block/zram0, fallback /dev/zram0).
     local swap_dev=""
     if swapoff /dev/block/zram0 2>/dev/null; then
         swap_dev="/dev/block/zram0"
@@ -113,12 +87,11 @@ run_post_fs_data() {
         swap_dev="/dev/zram0"
         log_zram_step "Step C (swapoff)" "OK" "Disabled swap on /dev/zram0"
     else
-        # swapoff failed. check if zram is actually active in /proc/swaps.
+        # Swapoff failed. Abort only if ZRAM is active in /proc/swaps.
         if grep -q "zram0" /proc/swaps 2>/dev/null; then
             log_zram_step "Step C (swapoff)" "ERR" "ZRAM is active but swapoff failed"
             return 0
         else
-            # zram is not active as swap yet. determine the appropriate swap device path.
             if [ -b "/dev/block/zram0" ]; then
                 swap_dev="/dev/block/zram0"
             elif [ -b "/dev/zram0" ]; then
@@ -135,14 +108,12 @@ run_post_fs_data() {
         fi
     fi
 
-    # step d: echo 1 > /sys/block/zram0/reset
     local reset_path="/sys/block/zram0/reset"
     if [ -f "$reset_path" ]; then
         if echo 1 > "$reset_path" 2>/dev/null; then
             log_zram_step "Step D (Reset ZRAM)" "OK" "Successfully reset zram0"
         else
             log_zram_step "Step D (Reset ZRAM)" "ERR" "Failed to write 1 to $reset_path"
-            # try to restore original swap
             swapon "$swap_dev" 2>/dev/null
             return 0
         fi
@@ -152,14 +123,12 @@ run_post_fs_data() {
         return 0
     fi
 
-    # step e: echo lz4 > /sys/block/zram0/comp_algorithm
     local comp_path="/sys/block/zram0/comp_algorithm"
     if [ -f "$comp_path" ]; then
         if echo lz4 > "$comp_path" 2>/dev/null; then
             log_zram_step "Step E (Set Algorithm)" "OK" "Successfully changed algorithm to lz4"
         else
             log_zram_step "Step E (Set Algorithm)" "ERR" "Failed to write lz4 to $comp_path"
-            # try to restore disksize and swap
             echo "$original_disksize" > "$disksize_path" 2>/dev/null
             mkswap "$swap_dev" >/dev/null 2>&1
             swapon "$swap_dev" 2>/dev/null
@@ -167,14 +136,12 @@ run_post_fs_data() {
         fi
     else
         log_zram_step "Step E (Set Algorithm)" "ERR" "Comp algorithm path $comp_path not found"
-        # try to restore disksize and swap
         echo "$original_disksize" > "$disksize_path" 2>/dev/null
         mkswap "$swap_dev" >/dev/null 2>&1
         swapon "$swap_dev" 2>/dev/null
         return 0
     fi
 
-    # step f: restore original disksize
     if echo "$original_disksize" > "$disksize_path" 2>/dev/null; then
         log_zram_step "Step F (Restore disksize)" "OK" "Restored disksize to $original_disksize"
     else
@@ -182,7 +149,6 @@ run_post_fs_data() {
         return 0
     fi
 
-    # step g: mkswap and swapon
     if mkswap "$swap_dev" >/dev/null 2>&1; then
         log_zram_step "Step G (mkswap)" "OK" "Prepared swap on $swap_dev"
     else

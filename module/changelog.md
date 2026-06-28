@@ -1,19 +1,5 @@
-# S23 Performance Tweaks Changelog
-
-## v1.1.1
-- Fixed UFS `nr_requests` write error by restoring adaptive scheduler check (setting limit to 31 for `none` scheduler).
-
-## v1.1
-- Replaced `cat` subshell forks with fast `read -r` redirects.
-- Cached dynamic `date` command outputs to eliminate duplicate subshell forks.
-- Wrapped ZRAM setup in a function and converted global exits to returns.
-- Aligned UFS request limit to 128 unconditionally.
-- Added SC3043 shellcheck flags for local variables.
-- Added safety comments for `update-binary` exits.
-- Cleaned up README.md style, tone, and warnings.
-
-## v1.0
-- Initial release.
-- Added CPU WALT, VM, GPU, network, and I/O scheduler tuning.
-- Configured ZRAM lz4 compression on early boot.
-- Added SM-S911* device safety guard.
+## v1.2
+- Added CPU policy5 tuning for the Snapdragon 8 Gen 2 Cortex-A715 cluster.
+- Implemented dynamic block device discovery matching `/sys/block/sd[a-z]`.
+- Hardened boot-completed detection using dual getprop and resetprop checks.
+hi lol
