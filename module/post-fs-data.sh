@@ -10,15 +10,10 @@ log_zram_step() {
     local step="$1"
     local status="$2"
     local msg="$3"
-    echo "[$TIMESTAMP] [ZRAM] $step: $status - $msg" >> "$MODDIR/zram_early.log"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] [ZRAM] $step: $status - $msg" >> "$MODDIR/zram_early.log"
 }
 
 run_post_fs_data() {
-    # Cache timestamp to avoid subshell forks on every log line.
-    local TIMESTAMP
-    TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-
-    # Skip if compression algorithm is already lz4.
     local comp_algo_path="/sys/block/zram0/comp_algorithm"
     if [ -f "$comp_algo_path" ]; then
         local current_algo
@@ -78,7 +73,6 @@ run_post_fs_data() {
         log_zram_step "Step B (RAM check)" "OK" "Free RAM (${mem_free_mb}MB) > Swap Used (${swap_used_mb}MB). Safe to proceed."
     fi
 
-    # Swapoff ZRAM device (try /dev/block/zram0, fallback /dev/zram0).
     local swap_dev=""
     if swapoff /dev/block/zram0 2>/dev/null; then
         swap_dev="/dev/block/zram0"

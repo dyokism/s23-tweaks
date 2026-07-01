@@ -21,7 +21,7 @@ write_value() {
     local path="$1"
     local value="$2"
     local timestamp_val
-    timestamp_val=${TIMESTAMP:-$(date "+%Y-%m-%d %H:%M:%S")}
+    timestamp_val=$(date "+%Y-%m-%d %H:%M:%S")
     
     if [ ! -e "$path" ]; then
         echo "[$timestamp_val] [SKIP] Path does not exist: $path" >> "$MODDIR/tweak.log"
@@ -54,21 +54,16 @@ wait_for_boot() {
 }
 
 apply_tweaks() {
-    local TIMESTAMP
-    TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "[$TIMESTAMP] [INFO] Applying optimization tweaks..." >> "$MODDIR/tweak.log"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] [INFO] Applying optimization tweaks..." >> "$MODDIR/tweak.log"
 
     write_value "/sys/devices/system/cpu/cpufreq/policy0/walt/hispeed_load" "85"
     write_value "/sys/devices/system/cpu/cpufreq/policy3/walt/hispeed_load" "85"
-    write_value "/sys/devices/system/cpu/cpufreq/policy5/walt/hispeed_load" "85"
     write_value "/sys/devices/system/cpu/cpufreq/policy7/walt/hispeed_load" "85"
     write_value "/sys/devices/system/cpu/cpufreq/policy0/walt/up_rate_limit_us" "500"
     write_value "/sys/devices/system/cpu/cpufreq/policy3/walt/up_rate_limit_us" "500"
-    write_value "/sys/devices/system/cpu/cpufreq/policy5/walt/up_rate_limit_us" "500"
     write_value "/sys/devices/system/cpu/cpufreq/policy7/walt/up_rate_limit_us" "1000"
     write_value "/sys/devices/system/cpu/cpufreq/policy0/walt/down_rate_limit_us" "20000"
     write_value "/sys/devices/system/cpu/cpufreq/policy3/walt/down_rate_limit_us" "20000"
-    write_value "/sys/devices/system/cpu/cpufreq/policy5/walt/down_rate_limit_us" "20000"
     write_value "/sys/devices/system/cpu/cpufreq/policy7/walt/down_rate_limit_us" "20000"
 
     write_value "/proc/sys/vm/swappiness" "80"
